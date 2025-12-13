@@ -181,13 +181,14 @@ class mqtt extends module
                 } else {
                     $max_updated = 0;
                     $device_title = '';
-                    $device_id = '';
+                    $device_id = 0;
                     for ($i = 0; $i < $total; $i++) {
-                        if (isset($items[$i]['DEVICE_TITLE']) && $items[$i]['DEVICE_TITLE'] != '' && !$device_title) {
-                            $device_title = $items[$i]['DEVICE_TITLE'];
-                        }
                         if (isset($items[$i]['DEVICE_ID']) && $items[$i]['DEVICE_ID'] != '' && !$device_id) {
                             $device_id = $items[$i]['DEVICE_ID'];
+                            $device_title = $items[$i]['DEVICE_TITLE'];
+                        } elseif (isset($items[$i]['DEVICE_TITLE']) && $items[$i]['DEVICE_TITLE'] != '' && !$device_title) {
+                            $device_id = 0;
+                            $device_title = $items[$i]['DEVICE_TITLE'];
                         }
                         if (isset($items[$i]['UPDATED'])) {
                             $tm = strtotime($items[$i]['UPDATED']);
@@ -205,11 +206,12 @@ class mqtt extends module
                             }
                         }
                     }
-                    if ($device_title) {
-                        $v['DEVICE_TITLE'] = $device_title;
-                    }
                     if ($device_id) {
+                        $v['DEVICE_TITLE'] = $device_title;
                         $v['DEVICE_ID'] = $device_id;
+                    } elseif ($device_title) {
+                        $v['DEVICE_TITLE'] = $device_title;
+                        $v['DEVICE_ID'] = 0;
                     }
                     $v['UPDATED'] = date('Y-m-d H:i:s', $max_updated);
                     if ((time() - $max_updated) <= 60 * 60) {

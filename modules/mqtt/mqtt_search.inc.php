@@ -118,10 +118,13 @@ if ($res[0]['ID']) {
         if ($res[$i]['LINKED_OBJECT'] != "") {
             //$object_rec = SQLSelectOne("SELECT objects.DESCRIPTION FROM objects WHERE TITLE='" . DBSafe($res[$i]['LINKED_OBJECT']) . "'");
             $device_rec = SQLSelectOne("SELECT ID, TITLE FROM devices WHERE LINKED_OBJECT='" . DBSafe($res[$i]['LINKED_OBJECT']) . "'");
-            if (isset($device_rec['ID'])) {
+            if (isset($device_rec['ID']) && strtolower($res[$i]['LINKED_OBJECT']) != 'allscripts') {
                 //$res[$i]['LINKED_PROPERTY'] .= ' &mdash; ' . $device_rec['TITLE'];
                 $res[$i]['DEVICE_TITLE'] = $device_rec['TITLE'];
                 $res[$i]['DEVICE_ID'] = $device_rec['ID'];
+            } else {
+                $res[$i]['DEVICE_ID'] = 0;
+                $res[$i]['DEVICE_TITLE'] = $res[$i]['LINKED_OBJECT'];
             }
 
         }

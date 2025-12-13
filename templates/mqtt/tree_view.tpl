@@ -86,6 +86,11 @@
         }
     }
 
+    function openObject(object_name) {
+        let url = '{$smarty.const.ROOTHTML}panel/classes.html?go_linked_object='+object_name;
+        window.location.href = url;
+    }
+
     function openDevice(device_id) {
         let url = '{$smarty.const.ROOTHTML}panel/devices.html?view_mode=edit_devices&tab=settings&id='+device_id;
         window.location.href = url;
@@ -137,18 +142,15 @@
                             &nbsp;{$item.TITLE}
                         {/if}
                         <span class="device_title" {if isset($item.IS_VISIBLE)} style="display:none"{/if}>{if isset($item.DEVICE_TITLE)}<span>&mdash;
-        <i><a href="#" onclick="return openDevice({$item.DEVICE_ID})">{$item.DEVICE_TITLE}</a></i></span>{/if}</span>
+        <i><a href="{$smarty.const.ROOTHTML}panel/{if $item.DEVICE_ID!=0}devices.html?view_mode=edit_devices&tab=settings&id={$item.DEVICE_ID}{else}classes.html?go_linked_object={$item.DEVICE_TITLE}{/if}">{$item.DEVICE_TITLE}</a></i></span>{/if}</span>
                         <a href="#" onclick="return deletePath('{$item.PATH_URL}');"><i style="display: none;" class="glyphicon glyphicon-remove delIcon_{if isset($item.ID)}{$item.ID}{/if}"></i></a>
                         {if isset($item.RESULT)}
                             <ul {if !isset($item.IS_VISIBLE)} style="display:none"{/if}>
                                 {menu items=$item.RESULT}
                             </ul>
                         {/if}
-
                     </li>
-
                 {/foreach}
-
             {/function}
             {menu items=$RESULT}
 
