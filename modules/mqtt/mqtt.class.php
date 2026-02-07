@@ -291,7 +291,7 @@ class mqtt extends module
         $mqtt_client = new Bluerhinos\phpMQTT($host, $port, $client_name . ' Client');
 
         if (!$mqtt_client->connect(true, NULL, $username, $password)) {
-            DebMes("Error connecting with '$value' to $topic",'mqtt_error');
+            DebMes("Error connecting with '$value' to $topic", 'mqtt_error');
             endMeasure('mqttPublish');
             return 0;
         }
@@ -300,7 +300,7 @@ class mqtt extends module
         $mqtt_client->close();
         endMeasure('mqttPublish');
         if (!$result) {
-            DebMes("Error writing '$value' to $topic",'mqtt_error');
+            DebMes("Error writing '$value' to $topic", 'mqtt_error');
             return 0;
         }
 
@@ -407,20 +407,14 @@ class mqtt extends module
             $hist['TOPIC'] = $topic;
             $hist['DATA_PAYLOAD'] = $value;
             $hist['VALUE'] = $original_value;
-            if (mb_strlen($hist['VALUE'])>255) {
-                $hist['VALUE']='[Data too large]';
+            if (mb_strlen($hist['VALUE']) > 255) {
+                $hist['VALUE'] = '[Data too large]';
             }
             $hist['UPDATED'] = date('Y-m-d H:i:s');
             if ($rec['LINKED_OBJECT'] && $rec['LINKED_PROPERTY']) {
                 $hist['LINKED_DATA'] = $rec['LINKED_OBJECT'] . '.' . $rec['LINKED_PROPERTY'];
             }
             SQLInsert('mqtt_history', $hist);
-
-            $keep_total = 20;
-            $tmp = SQLSelect("SELECT ID FROM mqtt_history WHERE MQTT_ID=" . $hist['MQTT_ID'] . " ORDER BY ID DESC LIMIT $keep_total");
-            if (count($tmp) == $keep_total) {
-                SQLExec("DELETE FROM mqtt_history WHERE MQTT_ID=" . $hist['MQTT_ID'] . " AND ID<" . $tmp[$keep_total - 1]['ID']);
-            }
         }
 
     }
@@ -486,6 +480,9 @@ class mqtt extends module
             $rec['PATH'] = $path;
             $rec['TITLE'] = $path;
             $rec['VALUE'] = $value . '';
+            if (mb_strlen($rec['VALUE']) > 255) {
+                $rec['VALUE'] = mb_substr($rec['VALUE'], 0, 255);
+            }
             $rec['UPDATED'] = date('Y-m-d H:i:s');
             SQLInsert('mqtt', $rec);
         } else {
@@ -498,6 +495,9 @@ class mqtt extends module
 
                 /* Update values in db */
                 $rec['VALUE'] = $value . '';
+                if (mb_strlen($rec['VALUE']) > 255) {
+                    $rec['VALUE'] = mb_substr($rec['VALUE'], 0, 255);
+                }
                 $rec['UPDATED'] = date('Y-m-d H:i:s');
                 SQLUpdate('mqtt', $rec);
 
@@ -523,7 +523,7 @@ class mqtt extends module
                     $hist['TOPIC'] = $path;
                     $hist['DATA_PAYLOAD'] = $original_value;
                     $hist['VALUE'] = $value;
-                    if (mb_strlen($hist['VALUE'])>255) {
+                    if (mb_strlen($hist['VALUE']) > 255) {
                         $hist['VALUE'] = '[Data too large]';
                     }
                     $hist['UPDATED'] = date('Y-m-d H:i:s');
@@ -531,12 +531,6 @@ class mqtt extends module
                         $hist['LINKED_DATA'] = $rec['LINKED_OBJECT'] . '.' . $rec['LINKED_PROPERTY'];
                     }
                     SQLInsert('mqtt_history', $hist);
-
-                    $keep_total = 20;
-                    $tmp = SQLSelect("SELECT ID FROM mqtt_history WHERE MQTT_ID=" . $hist['MQTT_ID'] . " ORDER BY ID DESC LIMIT $keep_total");
-                    if (count($tmp) == $keep_total) {
-                        SQLExec("DELETE FROM mqtt_history WHERE MQTT_ID=" . $hist['MQTT_ID'] . " AND ID<" . $tmp[$keep_total - 1]['ID']);
-                    }
                 }
 
 
@@ -567,6 +561,9 @@ class mqtt extends module
                     $hist['TOPIC'] = $path;
                     $hist['DATA_PAYLOAD'] = $original_value;
                     $hist['VALUE'] = $value;
+                    if (mb_strlen($hist['VALUE']) > 255) {
+                        $hist['VALUE'] = '[Data too large]';
+                    }
                     $hist['UPDATED'] = date('Y-m-d H:i:s');
                     SQLInsert('mqtt_history', $hist);
                 }
@@ -694,6 +691,55 @@ class mqtt extends module
                 $this->clear_trash();
                 $this->redirect(ROOTHTML . "panel/mqtt.html");
             }
+
+            if ($this->view_mode == 'optimize') {
+                $this->optimize();
+                $this->redirect(ROOTHTML . "panel/mqtt.html");
+            }
+
+        }
+    }
+
+    function getBreadcrumbs($path) {
+        $tmp = explode('/', $path);
+        $list_path = '';
+        $breadcrumbs = '';
+        foreach ($tmp as $word) {
+            if ($word == '') {
+                $list_path .= '/';
+                continue;
+            }
+            $list_path .= $word;
+            $parent_tmp = SQLSelectOne("SELECT ID FROM mqtt WHERE PATH='" . DBSafe($list_path) . "'");
+            $list_path .= '/';
+            if (isset($parent_tmp['ID'])) {
+                $parent_rec['ID'] = $parent_tmp['ID'];
+            }
+            if ($parent_rec['ID']) {
+                $breadcrumbs .= '<a href="' . ROOTHTML . 'panel/mqtt.html?view_mode=edit_mqtt&id=' . $parent_rec['ID'] . '">' . $word . '</a> / ';
+            } else {
+                $breadcrumbs .= '<a href="' . ROOTHTML . 'panel/mqtt.html?root=' . urlencode($list_path) . '">' . $word . '</a> / ';
+            }
+        }
+        return $breadcrumbs;
+    }
+
+    function optimize()
+    {
+
+        $unused = SQLSelect("SELECT mqtt_history.* FROM mqtt_history LEFT JOIN mqtt ON mqtt_history.MQTT_ID=mqtt.ID WHERE mqtt.ID IS NULL");
+        $total = count($unused);
+        for ($i = 0; $i < $total; $i++) {
+            SQLExec("DELETE FROM mqtt_history WHERE ID=" . $unused[$i]['ID']);
+        }
+        $keep_total = 20;
+        $topics = SQLSelect("SELECT ID FROM mqtt");
+        $total = count($topics);
+        for ($i = 0; $i < $total; $i++) {
+            $tmp = SQLSelect("SELECT ID FROM mqtt_history WHERE MQTT_ID=" . $topics[$i]['ID'] . " ORDER BY ID DESC LIMIT " . ($keep_total + 1));
+            if (count($tmp) > $keep_total) {
+                SQLExec("DELETE FROM mqtt_history WHERE MQTT_ID=" . $topics[$i]['ID'] . " AND ID<" . $tmp[$keep_total - 1]['ID']);
+            }
         }
     }
 
@@ -751,6 +797,11 @@ class mqtt extends module
                 } else {
                     $qry = 0;
                 }
+                $root = gr('root');
+                if ($root!='') {
+                    $qry.=" AND PATH LIKE '" . DBSafe($root) . "%'";
+                }
+
                 $data = SQLSelect("SELECT ID,VALUE FROM mqtt WHERE " . $qry);
                 $total = count($data);
                 for ($i = 0; $i < $total; $i++) {
@@ -771,7 +822,7 @@ class mqtt extends module
                     $updated_tm = strtotime($history[$i]['UPDATED']);
                     $diff_str = getPassedText($updated_tm);
 
-                    $result['HISTORY'] .= '<span title="'.$history[$i]['UPDATED'].'">'.$diff_str . '</span> ';
+                    $result['HISTORY'] .= '<span title="' . $history[$i]['UPDATED'] . '">' . $diff_str . '</span> ';
                     $result['HISTORY'] .= "<br/><small>";
                     $result['HISTORY'] .= "<a href='#' onclick='return editItem(" . $history[$i]['MQTT_ID'] . ");'>" . $history[$i]['TOPIC'] . "</a><br/>";
                     if ($history[$i]['DESTINATION'] == 1) {
@@ -855,6 +906,13 @@ class mqtt extends module
         SQLExec("DELETE FROM mqtt WHERE ID='" . $rec['ID'] . "'");
     }
 
+    function processSubscription($event, &$details)
+    {
+        if ($event == 'HOURLY') {
+            $this->optimize();
+        }
+    }
+
     /**
      * Install
      *
@@ -865,6 +923,8 @@ class mqtt extends module
     function install($data = '')
     {
         parent::install();
+
+        subscribeToEvent($this->name, 'HOURLY');
 
         $write_paths = SQLSelect("SELECT PATH_WRITE FROM mqtt WHERE PATH_WRITE != ''");
         $total = count($write_paths);

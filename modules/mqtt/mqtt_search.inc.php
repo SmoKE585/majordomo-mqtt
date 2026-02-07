@@ -59,6 +59,15 @@ if ($save_qry) {
 } else {
     $session->data['mqtt_qry'] = $qry;
 }
+
+$root = gr('root');
+if ($root!='') {
+    $qry.=" AND PATH LIKE '" . DBSafe($root) . "%'";
+    $out['MQTT_ROOT'] = $root;
+    $out['MQTT_ROOT_URL'] = urlencode($out['MQTT_ROOT']);
+    $out['BREADCRUMBS'] = $this->getBreadcrumbs($root);
+}
+
 if (!$qry) $qry = "1";
 // FIELDS ORDER
 $sortby_mqtt = gr('sortby_mqtt');

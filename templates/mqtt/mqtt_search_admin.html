@@ -171,10 +171,11 @@
         </div>
 </div>
 
+[#if MQTT_ROOT!=""#]<h3><a href="<#ROOTHTML#>panel/mqtt.html"><#LANG_ALL#></a> / [#BREADCRUMBS#]</h3>[#endif#]
+
 <div class="row" style="margin-right: -15px;margin-left: -15px;">
         <div class="col-lg-12 col-md-12 col-sm-12 col-xs-12">
                 [#if RESULT#]
-
                 [#if TREE="1"#]
                 [#inc tree_view.tpl#]
                 [#else TREE#]

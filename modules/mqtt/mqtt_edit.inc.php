@@ -7,14 +7,14 @@ if ($this->owner->name == 'panel') {
 }
 
 $table_name = 'mqtt';
-$rec = SQLSelectOne("SELECT * FROM $table_name WHERE ID=".(int)$id);
+$rec = SQLSelectOne("SELECT * FROM $table_name WHERE ID=" . (int)$id);
 if ($this->mode == 'update') {
     $ok = 1;
     //updating 'LOCATION_ID' (select)
-    if (IsSet($this->location_id)) {
+    if (isset($this->location_id)) {
         $rec['LOCATION_ID'] = $this->location_id;
     } else {
-        $location_id = gr('location_id','int');
+        $location_id = gr('location_id', 'int');
         if ($location_id != "")
             $rec['LOCATION_ID'] = $location_id;
     }
@@ -24,11 +24,11 @@ if ($this->mode == 'update') {
         $out['ERR_PATH'] = 1;
         $ok = 0;
     }
-    $rec['TITLE']=$rec['PATH'];
+    $rec['TITLE'] = $rec['PATH'];
     $rec['PATH_WRITE'] = gr('path_write');
-    $rec['DISP_FLAG'] = gr('disp_flag','int');
-    $rec['QOS'] = gr('qos','int');
-    $rec['RETAIN'] = gr('retain','int');
+    $rec['DISP_FLAG'] = gr('disp_flag', 'int');
+    $rec['QOS'] = gr('qos', 'int');
+    $rec['RETAIN'] = gr('retain', 'int');
     $rec['REPLACE_LIST'] = gr('replace_list');
 
     $old_linked_object = $rec['LINKED_OBJECT'];
@@ -39,10 +39,10 @@ if ($this->mode == 'update') {
     $rec['LINKED_PROPERTY'] = gr('linked_property');
     $rec['LINKED_METHOD'] = gr('linked_method');
 
-    $rec['READONLY']=gr('readonly','int');
-    $rec['ONLY_NEW_VALUE']=gr('only_new_value','int');
-    $rec['LOGGING']=gr('logging','int');
-    $rec['WRITE_TYPE']=gr('write_type','int');
+    $rec['READONLY'] = gr('readonly', 'int');
+    $rec['ONLY_NEW_VALUE'] = gr('only_new_value', 'int');
+    $rec['LOGGING'] = gr('logging', 'int');
+    $rec['WRITE_TYPE'] = gr('write_type', 'int');
 
     //UPDATING RECORD
     if ($ok) {
@@ -60,8 +60,8 @@ if ($this->mode == 'update') {
             removeLinkedProperty($old_linked_object, $old_linked_property, $this->name);
         }
 
-        if ($rec['PATH_WRITE']!='' && $rec['PATH_WRITE']!=$rec['PATH']) {
-            SQLExec("DELETE FROM mqtt WHERE PATH='".DBSafe($rec['PATH_WRITE'])."'");
+        if ($rec['PATH_WRITE'] != '' && $rec['PATH_WRITE'] != $rec['PATH']) {
+            SQLExec("DELETE FROM mqtt WHERE PATH='" . DBSafe($rec['PATH_WRITE']) . "'");
         }
 
         $out['OK'] = 1;
@@ -98,22 +98,7 @@ outHash($rec, $out);
 
 if ($rec['ID'] && $rec['PATH']) {
 
-    $path = $rec['PATH'];
-    $tmp = explode('/', $path);
-    $list_path = '';
-    $parents = array();
-    foreach ($tmp as $word) {
-        if ($word == '') continue;
-        $list_path .= '/' . $word;
-        $parent_rec['TITLE'] = $word;
-        $parent_tmp = SQLSelectOne("SELECT ID FROM mqtt WHERE PATH='" . DBSafe($list_path) . "'");
-        if (isset($parent_tmp['ID'])) {
-            $parent_rec['ID'] = $parent_tmp['ID'];
-        }
-        $parents[] = $parent_rec;
-    }
-    $out['PARENTS'] = $parents;
-
+    $out['BREADCRUMBS'] = $this->getBreadcrumbs($rec['PATH']);
     $childs = SQLSelect("SELECT * FROM mqtt WHERE PATH LIKE '" . DBSafe($rec['PATH']) . "%' AND ID!={$rec['ID']} ORDER BY PATH");
     $out['CHILDS'] = $childs;
 }

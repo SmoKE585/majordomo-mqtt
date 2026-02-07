@@ -10,7 +10,7 @@
             ids+='ids[]='+this.id.replace('mqtt','')+'&';
         });
         [#endif TREE#]
-        var url='<#ROOTHTML#>ajax/mqtt.html?op=getvalues&'+ids;
+        var url='<#ROOTHTML#>ajax/mqtt.html?op=getvalues&'+ids+'&root=[#MQTT_ROOT_URL#]';
         $.ajax({
             url: url
         }).done(function(data) {

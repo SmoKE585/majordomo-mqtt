@@ -94,9 +94,14 @@ foreach ($topics as $k => $v) {
 }
 $previousMillis = 0;
 
+$latest_data_received = time();
+$max_no_data_timeout = 5 * 60; // 5 minutes
+
 while ($mqtt_client->proc()) {
-
-
+    if ((time() - $latest_data_received) > $max_no_data_timeout) {
+        // restarting cycle if no data received for 5 minutes
+        setGlobal('cycle_mqttControl', 'restart');
+    }
     if ($mqtt->config['MQTT_WRITE_METHOD'] == 2) {
         $queue = checkOperationsQueue('mqtt_queue');
         foreach ($queue as $mqtt_data) {
@@ -115,19 +120,15 @@ while ($mqtt_client->proc()) {
                 echo "Publishing to $topic : $value\n";
                 $result = $mqtt_client->publish($topic, $value, $qos, $retain);
                 if (!is_null($result) && !$result) {
-                    DebMes("Error writing from queue '$value' to $topic",'mqtt_error');
+                    DebMes("Error writing from queue '$value' to $topic", 'mqtt_error');
                 }
             }
         }
     }
-
     $currentMillis = round(microtime(true) * 10000);
-
     if ($currentMillis - $previousMillis > 10000) {
         $previousMillis = $currentMillis;
-
         setGlobal((str_replace('.php', '', basename(__FILE__))) . 'Run', time(), 1);
-
         if (file_exists('./reboot') || isset($_GET['onetime'])) {
 
             $mqtt_client->close();
@@ -147,6 +148,8 @@ $mqtt_client->close();
  */
 function procmsg($topic, $msg)
 {
+    global $latest_data_received;
+    $latest_data_received = time();
 
     if (!isset($topic) || !isset($msg)) return false;
     global $stripmode;
@@ -157,6 +160,8 @@ function procmsg($topic, $msg)
         // processing cached
         return false;
     }
+
+    //DebMes("Processing incoming $topic: $msg", 'mqtt');
 
     if ($stripmode) {
         $rec = SQLSelectOne("SELECT ID FROM `mqtt` where `PATH` like '$topic%' and LINKED_OBJECT>''");
