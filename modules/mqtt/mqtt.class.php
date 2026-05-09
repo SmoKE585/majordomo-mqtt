@@ -288,7 +288,36 @@ class mqtt extends module
             $port = 1883;
         }
 
+        // TLS/SSL configuration
+        $tls_enabled = isset($this->config['MQTT_TLS_ENABLE']) ? (int)$this->config['MQTT_TLS_ENABLE'] : 0;
+        $tls_ca_file = isset($this->config['MQTT_TLS_CERTPATH']) ? $this->config['MQTT_TLS_CERTPATH'] : '';
+        $tls_ignore_cert = isset($this->config['MQTT_TLS_IGNORE_CERT']) ? (int)$this->config['MQTT_TLS_IGNORE_CERT'] : 0;
+
+        // Create MQTT client with TLS support
         $mqtt_client = new Bluerhinos\phpMQTT($host, $port, $client_name . ' Client');
+
+        // Set TLS context if TLS is enabled
+        if ($tls_enabled) {
+            $tls_context_options = array(
+                'local_cert' => $tls_ca_file ? $tls_ca_file : false
+            );
+            
+            if ($tls_ignore_cert) {
+                // Ignore certificate validation (insecure, but sometimes needed for self-signed certs)
+                $tls_context_options['verify_peer'] = false;
+                $tls_context_options['verify_peer_name'] = false;
+                $tls_context_options['allow_self_signed'] = true;
+            }
+            
+            // Set TLS/SSL stream context
+            $tls_context = stream_context_create(array('ssl' => $tls_context_options));
+            
+            if (method_exists($mqtt_client, 'setTlsContext')) {
+                $mqtt_client->setTlsContext($tls_context);
+            } elseif (property_exists($mqtt_client, 'tlsContext')) {
+                $mqtt_client->tlsContext = $tls_context;
+            }
+        }
 
         if (!$mqtt_client->connect(true, NULL, $username, $password)) {
             DebMes("Error connecting with '$value' to $topic", 'mqtt_error');
@@ -612,6 +641,11 @@ class mqtt extends module
         $out['MQTT_WRITE_METHOD'] = isset($this->config['MQTT_WRITE_METHOD']) ? (int)$this->config['MQTT_WRITE_METHOD'] : 0;
         $out['MQTT_STRIPMODE'] = isset($this->config['MQTT_STRIPMODE']) ? $this->config['MQTT_STRIPMODE'] : 0;
         $out['DEBUG_MODE'] = $this->config['DEBUG_MODE'];
+        
+        // TLS/SSL configuration output
+        $out['MQTT_TLS_ENABLE'] = isset($this->config['MQTT_TLS_ENABLE']) ? (int)$this->config['MQTT_TLS_ENABLE'] : 0;
+        $out['MQTT_TLS_CERTPATH'] = isset($this->config['MQTT_TLS_CERTPATH']) ? $this->config['MQTT_TLS_CERTPATH'] : '';
+        $out['MQTT_TLS_IGNORE_CERT'] = isset($this->config['MQTT_TLS_IGNORE_CERT']) ? (int)$this->config['MQTT_TLS_IGNORE_CERT'] : 0;
 
         if (!$out['MQTT_HOST']) {
             $out['MQTT_HOST'] = 'localhost';
@@ -639,6 +673,11 @@ class mqtt extends module
             $this->config['MQTT_WRITE_METHOD'] = gr('mqtt_write_method', 'int');
             $this->config['MQTT_STRIPMODE'] = gr('mqtt_stripmode', 'int');
             $this->config['DEBUG_MODE'] = gr('debug_mode', 'int');
+            
+            // TLS/SSL configuration update
+            $this->config['MQTT_TLS_ENABLE'] = gr('mqtt_tls_enable', 'int');
+            $this->config['MQTT_TLS_CERTPATH'] = gr('mqtt_tls_certpath');
+            $this->config['MQTT_TLS_IGNORE_CERT'] = gr('mqtt_tls_ignore_cert', 'int');
 
             if (!$this->config['DEBUG_MODE']) {
                 SQLExec("TRUNCATE mqtt_history;");
